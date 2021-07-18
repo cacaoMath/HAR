@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import pathlib
+from tqdm import tqdm
 
 class Loader:
     def __init__(self, sensordata_dir="SensorData", sensordata_labelFile="./SensorData/DataLabel.csv"):
@@ -27,12 +28,42 @@ class Loader:
         #dataframeでlabel_dataに存在するラベルに合わせてデータファイル情報を残す
         merged_df = pd.merge(labels_data, sensordata_list)
 
-        return merged_df
+        #todo:file 読み込みしてndarrayをかえす
+        #data = pd.read_csv(self.sensordata_dir+"/"+merged_df.SensingDataFileName[0]+".txt")
+        dataset = []
+        for idx, item in merged_df.iterrows():
+            data = pd.read_csv(self.sensordata_dir+"/"+item.SensingDataFileName+".txt")
+            data = data.drop(columns="timestamp").values
+            dataset.append((data, item.Label, item.id))
 
+        return dataset
 
+    def shape_dataset(self, dataset, window_size=256, label_dict = {"lie":0,"sit":1,"stand":2,"walk_treadmill":3,"walk_disturb":4}):
+        """
+        dataset : taple(sensordata : ndarrayでx,y,z軸で格納されている,
+                        label : strでラベルがふられている，
+                        id : strでセンサデータの被験者id )のリスト
+        window_size : 生データをウィンドウサイズ何で分割するかの値
+        label_dict : datasetのlabelに対応した辞書
+        """
+        print("shape dataset ...")
+        shaped_dataset = []
+        for elm in tqdm(dataset):
+            sensor_data = elm[0]
+            label = elm[1]
+            id = elm[2]
+            batch_size = int(len(sensor_data)/window_size)
+            split_data = [sensor_data[i:i+window_size] for i in range(0, batch_size*window_size, window_size)]
+            split_data = np.array(split_data)
+            label = np.full(batch_size, label_dict[label])
+            shaped_dataset.append((split_data, label, id))
+        return shaped_dataset
 
 
 if __name__ == '__main__':
     loader = Loader()
-    print(loader.read_data())
+    a = loader.read_data()
+    #print(a)
+    b = loader.shape_dataset(a)
+    #print(b)
 
