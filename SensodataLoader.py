@@ -38,6 +38,7 @@ class Loader:
 
         return dataset
 
+    #データセットの成型（データの分割など）
     def shape_dataset(self, dataset, window_size=256, label_dict = {"lie":0,"sit":1,"stand":2,"walk_treadmill":3,"walk_disturb":4}):
         """
         dataset : taple(sensordata : ndarrayでx,y,z軸で格納されている,
@@ -54,11 +55,16 @@ class Loader:
             id = elm[2]
             batch_size = int(len(sensor_data)/window_size)
             split_data = [sensor_data[i:i+window_size] for i in range(0, batch_size*window_size, window_size)]
-            split_data = np.array(split_data)
+            split_data = np.array(split_data).transpose(0,2,1)
+            print(split_data)
             label = np.full(batch_size, label_dict[label])
             shaped_dataset.append((split_data, label, id))
         return shaped_dataset
 
+    #成形したデータセットロードする．
+    def load_data(self):
+        raw_data = self.read_data()
+        return self.shape_dataset(raw_data)
 
 if __name__ == '__main__':
     loader = Loader()
