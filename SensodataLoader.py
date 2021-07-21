@@ -17,7 +17,7 @@ class Loader:
         else:
             print("type is nothing")
     
-    def read_data(self, sensordata_type="accelerate"):
+    def load_data(self, sensordata_type="accelerate"):
         labels_data = pd.read_csv(self.sensordata_labelFile)
         labels_data["SensingDataFileName"] = labels_data["SensingDataFileName"].apply(lambda x: "{}_{}".format(sensordata_type,x))
         
@@ -30,13 +30,16 @@ class Loader:
 
         #todo:file 読み込みしてndarrayをかえす
         #data = pd.read_csv(self.sensordata_dir+"/"+merged_df.SensingDataFileName[0]+".txt")
-        dataset = []
-        for idx, item in merged_df.iterrows():
-            data = pd.read_csv(self.sensordata_dir+"/"+item.SensingDataFileName+".txt")
-            data = data.drop(columns="timestamp").values
-            dataset.append((data, item.Label, item.id))
-
-        return dataset
+        datasets = []
+        for id in tqdm(merged_df.id.unique()):
+            applicapableId_df = merged_df[merged_df.id == id]
+            for idx, elm in applicapableId_df.iterrows():                 
+                data = pd.read_csv(self.sensordata_dir+"/"+elm.SensingDataFileName+".txt")
+                data = data.drop(columns="timestamp").values
+                dataset = self.shape_dataset((data,elm.Label))
+                datasets.append(dataset)
+        
+        return datasets
 
     #データセットの成型（データの分割など）
     def shape_dataset(self, dataset, window_size=256, label_dict = {"lie":0,"sit":1,"stand":2,"walk_treadmill":3,"walk_disturb":4}):
@@ -46,30 +49,23 @@ class Loader:
                         id : strでセンサデータの被験者id )のリスト
         window_size : 生データをウィンドウサイズ何で分割するかの値
         label_dict : datasetのlabelに対応した辞書
+        return データセットをndarrayで返す
         """
-        print("shape dataset ...")
-        shaped_dataset = []
-        for elm in tqdm(dataset):
-            sensor_data = elm[0]
-            label = elm[1]
-            id = elm[2]
-            batch_size = int(len(sensor_data)/window_size)
-            split_data = [sensor_data[i:i+window_size] for i in range(0, batch_size*window_size, window_size)]
-            split_data = np.array(split_data).transpose(0,2,1)
-            print(split_data)
-            label = np.full(batch_size, label_dict[label])
-            shaped_dataset.append((split_data, label, id))
-        return shaped_dataset
+        # print("shape dataset ...")
+        sensor_data = dataset[0]
+        label = dataset[1]
+        batch_size = int(len(sensor_data)/window_size)
+        split_data = [sensor_data[i:i+window_size] for i in range(0, batch_size*window_size, window_size)]
+        split_data = np.array(split_data).transpose(0,2,1)
+        # print(split_data)
+        label = np.full(batch_size, label_dict[label])
+        return (split_data, label)
 
-    #成形したデータセットロードする．
-    def load_data(self):
-        raw_data = self.read_data()
-        return self.shape_dataset(raw_data)
 
 if __name__ == '__main__':
     loader = Loader()
-    a = loader.read_data()
-    #print(a)
-    b = loader.shape_dataset(a)
-    #print(b)
+    a = loader.load_data()
+    print(a)
+    # b = loader.shape_dataset(a)
+    # print(b)
 
