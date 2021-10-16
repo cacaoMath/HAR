@@ -18,6 +18,9 @@ class Loader:
             print("type is nothing")
     
     def load_data(self, sensordata_type="accelerate"):
+        """
+        """
+
         labels_data = pd.read_csv(self.sensordata_labelFile)
         labels_data["SensingDataFileName"] = labels_data["SensingDataFileName"].apply(lambda x: "{}_{}".format(sensordata_type,x))
         
@@ -39,7 +42,7 @@ class Loader:
                 dataset = self.shape_dataset((data,elm.Label))
                 datasets.append(dataset)
         
-        return datasets
+        return np.array(datasets)
 
     #データセットの成型（データの分割など）
     def shape_dataset(self, dataset, window_size=256, label_dict = {"lie":0,"sit":1,"stand":2,"walk_treadmill":3,"walk_disturb":4}):
