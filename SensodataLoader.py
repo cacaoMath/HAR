@@ -18,6 +18,7 @@ class Loader:
             print("type is nothing")
     
     def load_data(self, sensordata_type="accelerate"):
+
         labels_data = pd.read_csv(self.sensordata_labelFile)
         labels_data["SensingDataFileName"] = labels_data["SensingDataFileName"].apply(lambda x: "{}_{}".format(sensordata_type,x))
         
@@ -28,8 +29,6 @@ class Loader:
         #dataframeでlabel_dataに存在するラベルに合わせてデータファイル情報を残す
         merged_df = pd.merge(labels_data, sensordata_list)
 
-        #todo:file 読み込みしてndarrayをかえす
-        #data = pd.read_csv(self.sensordata_dir+"/"+merged_df.SensingDataFileName[0]+".txt")
         datasets = []
         for id in tqdm(merged_df.id.unique()):
             applicapableId_df = merged_df[merged_df.id == id]
@@ -39,7 +38,7 @@ class Loader:
                 dataset = self.shape_dataset((data,elm.Label))
                 datasets.append(dataset)
         
-        return datasets
+        return np.array(datasets)
 
     #データセットの成型（データの分割など）
     def shape_dataset(self, dataset, window_size=256, label_dict = {"lie":0,"sit":1,"stand":2,"walk_treadmill":3,"walk_disturb":4}):
@@ -64,8 +63,6 @@ class Loader:
 
 if __name__ == '__main__':
     loader = Loader()
-    a = loader.load_data()
-    print(a)
-    # b = loader.shape_dataset(a)
-    # print(b)
+    data = loader.load_data()
+    print(data)
 
