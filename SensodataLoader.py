@@ -18,6 +18,11 @@ class Loader:
             print("type is nothing")
     
     def load_data(self, sensordata_type="accelerate"):
+        """
+        フォルダに保存されたセンサデータと，各センサデータについてのメタデータファイルDataLabel,csvを用いて，データをロードする．
+        sensordata_type: "accelerate" or "gyro"
+        return : ndarray[加速度センサデータが格納されたリスト，各センサデータのデータに対応した正解ラベルリスト]
+        """
 
         labels_data = pd.read_csv(self.sensordata_labelFile)
         labels_data["SensingDataFileName"] = labels_data["SensingDataFileName"].apply(lambda x: "{}_{}".format(sensordata_type,x))
@@ -31,13 +36,17 @@ class Loader:
 
         datasets = []
         for id in tqdm(merged_df.id.unique()):
+            sensordata_list=[]
+            label_list=[]
             applicapableId_df = merged_df[merged_df.id == id]
             for idx, elm in applicapableId_df.iterrows():                 
                 data = pd.read_csv(self.sensordata_dir+"/"+elm.SensingDataFileName+".txt")
                 data = data.drop(columns="timestamp").values
-                dataset = self.shape_dataset((data,elm.Label))
-                datasets.append(dataset)
-        
+                sensordata, label = self.shape_dataset((data,elm.Label))
+                sensordata_list.extend(sensordata)
+                label_list.extend(label)
+
+            datasets.append([np.array(sensordata_list), np.array(label_list)])
         return np.array(datasets)
 
     #データセットの成型（データの分割など）
@@ -58,11 +67,12 @@ class Loader:
         split_data = np.array(split_data).transpose(0,2,1)
         # print(split_data)
         label = np.full(batch_size, label_dict[label])
-        return (split_data, label)
+        return split_data, label
 
 
 if __name__ == '__main__':
     loader = Loader()
     data = loader.load_data()
-    print(data)
+    for d in data:
+        print(np.unique(d[1]))
 
