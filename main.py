@@ -8,9 +8,19 @@ import tensorflow as tf
 def train_locv(datasets):
     """
     加速度センサデータのデータセットを用いて深層学習で学習する．
+    モデルの評価にはLeave One Subject Outを用いることで個人差の影響を考慮する．
+    学習後は評価におけて最大の精度を出したモデルを/my_modelに保存する．
     datasets : ndarrayの形になっているデータセット
+
+    return : pred
     """
+    accuracy = 0
+    all_pred = np.empty(0)
+    all_y_test = np.empty(0)
+    print(len(datasets))
     for idx in range(len(datasets)):
+        if idx != 4:
+            continue
         x_test, y_test = datasets[idx][0].transpose(0,2,1), to_categorical(datasets[idx][1], num_classes=5)
         test_index = np.ones(len(datasets), dtype=bool)
         test_index[idx] = False  
@@ -30,13 +40,24 @@ def train_locv(datasets):
         model.compile(optimizer='rmsprop',
                       loss='categorical_crossentropy',
                       metrics=['accuracy'])
-        model.fit(x_train, y_train, batch_size=256, epochs=30, verbose=1, validation_data=(x_val,y_val))
-        model.save("my_model")
-        score = model.predict(x_test, verbose=0)
-        print(score)
-        #1人分だけ訓練するとき用
-        # if idx == 0:
-        #     break
+        model.fit(x_train, y_train, batch_size=128, epochs=30, verbose=1, validation_data=(x_val,y_val))
+
+        pred = model.predict(x_test, verbose=0)
+        pred = np.argmax(pred,axis=1)
+        y_test = np.argmax(y_test, axis=1)
+        score = np.count_nonzero(pred==y_test)/y_test.size
+        print("Accuracy : {}".format(score))
+
+        if score > accuracy:
+            model.save("my_model")
+            accuracy = score
+
+        all_pred = np.append(all_pred, pred)
+        all_y_test = np.append(all_y_test, y_test)
+
+    
+    return all_pred, all_y_test
+
 
 def model_converter_tflite(model_path):
     """
@@ -51,10 +72,16 @@ def model_converter_tflite(model_path):
     tflite_model = converter.convert()
     open("tflite_model/converted_model.tflite", "wb").write(tflite_model)
 
+def conf_mat(true, pred):
+    from sklearn.metrics import confusion_matrix
+    print("Confusion Matrix")
+    print(confusion_matrix(pred, true))
+    
 def main():
     datasets = Loader().load_data()
-    train_locv(datasets)
-    # model_converter_tflite("my_model")
+    pred, grand_true = train_locv(datasets)
+    conf_mat(grand_true.tolist(), pred.tolist())
+    model_converter_tflite("my_model")
 
 if __name__ == '__main__':
     main()
